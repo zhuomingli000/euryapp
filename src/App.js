@@ -49,7 +49,7 @@ function TestModel({ modelName }) {
     formData.append("model_name", modelName);
     formData.append("user_input", input);
     try {
-      const res = await fetch("http://localhost:8000/predict", {
+      const res = await fetch("http://64.62.226.208:8000/predict", {
         method: "POST",
         body: formData,
       });
@@ -119,7 +119,7 @@ function TrainStream() {
     }
 
     // Use fetch to POST to /train/stream and read the response as a stream
-    const response = await fetch("http://localhost:8000/train/stream", {
+    const response = await fetch("http://64.62.226.208:8000/train/stream", {
       method: "POST",
       body: formData,
     });
