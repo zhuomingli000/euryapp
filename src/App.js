@@ -1,7 +1,8 @@
 import React, { useState } from "react";
+import { BACKEND_URL, APP_CONFIG } from "./config";
 
-// Backend configuration - change this to your backend URL
-const BACKEND_URL = "http://localhost:8000";
+// Backend configuration is now imported from config.js
+// To change the backend URL, edit the BACKEND_URL in config.js
 
 function DWLIntro({ onStart }) {
   return (
@@ -243,8 +244,54 @@ function TrainStream() {
   const [selectedTrainingMethod, setSelectedTrainingMethod] = useState("dwl");
   const [formError, setFormError] = useState("");
 
+  // Class labels for different datasets
+  const classLabelsMap = {
+    "yahoo_answers_topics": [
+      "Society & Culture", "Science & Mathematics", "Health", "Education & Reference",
+      "Computers & Internet", "Sports", "Business & Finance", "Entertainment & Music",
+      "Family & Relationships", "Politics & Government"
+    ],
+    "ag_news": ["World", "Sports", "Business", "Sci/Tech"],
+    "emotion": ["joy", "sadness", "anger", "fear", "surprise", "love"],
+    "imdb": ["Negative", "Positive"],
+    "yelp_polarity": ["Negative", "Positive"],
+    "amazon_polarity": ["Negative", "Positive"],
+    "rotten_tomatoes": ["Negative", "Positive"],
+    "trec": ["Description", "Entity", "Abbreviation", "Human", "Location", "Numeric"],
+    "yelp_review_full": ["1 Star", "2 Stars", "3 Stars", "4 Stars", "5 Stars"],
+    "dbpedia_14": ["Company", "EducationalInstitution", "Artist", "Athlete", "OfficeHolder", 
+                   "MeanOfTransportation", "Building", "NaturalPlace", "Village", "Animal", 
+                   "Plant", "Album", "Film", "WrittenWork"],
+    "go_emotions": ["admiration", "amusement", "anger", "annoyance", "approval", "caring", 
+                   "confusion", "curiosity", "desire", "disappointment", "disapproval", 
+                   "disgust", "embarrassment", "excitement", "fear", "gratitude", "grief", 
+                   "joy", "love", "nervousness", "optimism", "pride", "realization", 
+                   "relief", "remorse", "sadness", "surprise", "neutral"],
+    "banking77": ["General inquiries", "Account management", "Card services", "Loan services", 
+                  "Investment services", "Insurance services", "Fraud and security", 
+                  "Technical support", "Mobile banking", "Online banking", "ATM services", 
+                  "Branch services", "International services", "Payment services", 
+                  "Credit services", "Debit services", "Savings accounts", "Checking accounts", 
+                  "Mortgage services", "Personal loans", "Business loans", "Student loans", 
+                  "Auto loans", "Home equity loans", "Credit cards", "Debit cards", 
+                  "Prepaid cards", "Gift cards", "Travel cards", "Business cards", 
+                  "Rewards cards", "Cash back cards", "Balance transfer cards", 
+                  "Secured cards", "Unsecured cards", "Co-branded cards", "Affinity cards", 
+                  "Corporate cards", "Fleet cards", "Purchasing cards", "Virtual cards", 
+                  "Contactless cards", "Chip cards", "Magnetic stripe cards", "EMV cards", 
+                  "NFC cards", "QR code cards", "Barcode cards", "Smart cards", 
+                  "Memory cards", "Processor cards", "Contact cards", "Contactless cards", 
+                  "Dual interface cards", "Hybrid cards", "Combo cards", "Multi-application cards", 
+                  "Single application cards", "Open loop cards", "Closed loop cards", 
+                  "Private label cards", "White label cards", "Co-branded cards", 
+                  "Affinity cards", "Corporate cards", "Fleet cards", "Purchasing cards", 
+                  "Virtual cards", "Contactless cards", "Chip cards", "Magnetic stripe cards", 
+                  "EMV cards", "NFC cards", "QR code cards", "Barcode cards", "Smart cards"]
+  };
+
   // Function to handle dataset selection
   const handleDatasetChange = (datasetName) => {
+    console.log('Dataset changed to:', datasetName);
     setSelectedDataset(datasetName);
   };
 
@@ -275,6 +322,35 @@ function TrainStream() {
     const formData = new FormData(form);
     setSelectedModel(formData.get("model_name"));
 
+    // Debug: Log what we're sending
+    console.log("Form data being sent:");
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}: ${value}`);
+    }
+
+    // Convert class name to class number for custom sample label
+    const customSampleLabel = formData.get("custom_sample_label");
+    if (customSampleLabel && selectedDataset) {
+      const classLabels = classLabelsMap[selectedDataset] || [];
+      const classIndex = classLabels.indexOf(customSampleLabel);
+      if (classIndex !== -1) {
+        formData.set("custom_sample_label", classIndex.toString());
+      }
+    }
+    
+    // Remove empty custom sample fields to prevent validation errors
+    const customSampleText = formData.get("custom_sample_text");
+    if (!customSampleText || customSampleText.trim() === "") {
+      formData.delete("custom_sample_text");
+      formData.delete("custom_sample_label");
+    }
+    
+    // Ensure learning rate is properly formatted
+    const learningRate = formData.get("learning_rate");
+    if (learningRate && !isNaN(parseFloat(learningRate))) {
+      formData.set("learning_rate", parseFloat(learningRate).toString());
+    }
+
     // Validate parameters
     if (!validateParams(formData)) {
       setIsTraining(false);
@@ -283,13 +359,28 @@ function TrainStream() {
 
     // Use fetch to POST to /train/stream and read the response as a stream
     try {
+      console.log("Sending request to:", `${BACKEND_URL}/train/stream`);
+      
       const response = await fetch(`${BACKEND_URL}/train/stream`, {
         method: "POST",
         body: formData,
       });
 
+      console.log("Response status:", response.status);
+      console.log("Response headers:", response.headers);
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Try to get error details
+        let errorDetails = "";
+        try {
+          const errorData = await response.json();
+          errorDetails = JSON.stringify(errorData, null, 2);
+        } catch (e) {
+          errorDetails = await response.text();
+        }
+        
+        console.error("Backend error details:", errorDetails);
+        throw new Error(`HTTP error! status: ${response.status}\nDetails: ${errorDetails}`);
       }
 
       if (!response.body) {
@@ -532,22 +623,42 @@ function TrainStream() {
             </div>
             <div style={{ marginBottom: '10px' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#2c3e50', fontSize: '0.9em' }}>
-                Label (Class Number):
+                Label (Class):
               </label>
-              <input
-                type="number"
+              <select
                 name="custom_sample_label"
-                min="0"
-                placeholder="Enter class number (0, 1, 2, etc.)"
                 style={{
                   width: '100%',
                   padding: '10px',
                   border: '1px solid #ddd',
                   borderRadius: '4px',
                   fontSize: '0.9em',
-                  backgroundColor: 'white'
+                  backgroundColor: selectedDataset ? 'white' : '#f8f9fa'
                 }}
-              />
+                disabled={!selectedDataset}
+              >
+                <option value="">Select a class {selectedDataset ? `(${selectedDataset})` : '(no dataset selected)'}</option>
+                {selectedDataset && classLabelsMap[selectedDataset] ? 
+                  classLabelsMap[selectedDataset].map((label, index) => (
+                    <option key={index} value={label}>{label}</option>
+                  )) : 
+                  <option value="" disabled>Please select a dataset first</option>
+                }
+              </select>
+              {!selectedDataset && (
+                <div style={{ 
+                  marginTop: '5px', 
+                  fontSize: '0.8em', 
+                  color: '#e74c3c', 
+                  fontStyle: 'italic',
+                  padding: '5px',
+                  backgroundColor: '#fdf2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '3px'
+                }}>
+                  ⚠️ Please select a dataset above to see available class labels
+                </div>
+              )}
             </div>
             <div style={{ fontSize: '0.8em', color: '#666', fontStyle: 'italic' }}>
               💡 This sample will be added to the test set and analyzed in the comparison results.
