@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/dwlapp/static/css/main.e6c13ad2.css",
-    "main.js": "/dwlapp/static/js/main.d51fb2e9.js",
+    "main.js": "/dwlapp/static/js/main.c1759ab0.js",
     "static/js/453.670e15c7.chunk.js": "/dwlapp/static/js/453.670e15c7.chunk.js",
     "index.html": "/dwlapp/index.html",
     "main.e6c13ad2.css.map": "/dwlapp/static/css/main.e6c13ad2.css.map",
-    "main.d51fb2e9.js.map": "/dwlapp/static/js/main.d51fb2e9.js.map",
+    "main.c1759ab0.js.map": "/dwlapp/static/js/main.c1759ab0.js.map",
     "453.670e15c7.chunk.js.map": "/dwlapp/static/js/453.670e15c7.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.d51fb2e9.js"
+    "static/js/main.c1759ab0.js"
   ]
 }
