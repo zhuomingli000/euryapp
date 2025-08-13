@@ -9,8 +9,8 @@
 // Use environment variable if available, otherwise use the default
 export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://unique-bullfrog-blatantly.ngrok-free.app";
 
-// For local development, uncomment the line below:
-// export const BACKEND_URL = "http://localhost:8000";
+// For ngrok tunnel, uncomment the line below:
+// export const BACKEND_URL = "https://unique-bullfrog-blatantly.ngrok-free.app";
 
 // App Configuration
 export const APP_CONFIG = {

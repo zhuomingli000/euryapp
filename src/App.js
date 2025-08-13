@@ -1,5 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { BACKEND_URL, APP_CONFIG } from "./config";
+import { AuthProvider, useAuth } from './AuthContext';
+import Login from './Login';
+import UserProfile from './UserProfile';
 
 // Backend configuration is now imported from config.js
 // To change the backend URL, edit the BACKEND_URL in config.js
@@ -25,7 +28,7 @@ function DWLIntro({ onStart }) {
   );
 }
 
-function TestModel({ modelName, datasetName, trainingMethod }) {
+function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = false }) {
   const [input, setInput] = useState("");
   const [prediction, setPrediction] = useState(null);
   const [error, setError] = useState(null);
@@ -102,9 +105,20 @@ function TestModel({ modelName, datasetName, trainingMethod }) {
     formData.append("user_input", input);
     formData.append("dataset_name", datasetName);
     formData.append("training_method", trainingMethod); // Add training method to form data
+    formData.append("custom", isCustomModel ? "true" : "false"); // Add custom parameter
     try {
+      // Get auth token
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setError("Authentication required. Please log in again.");
+        return;
+      }
+
       const res = await fetch(`${BACKEND_URL}/predict`, {
         method: "POST",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData,
       });
       const data = await res.json();
@@ -135,15 +149,19 @@ function TestModel({ modelName, datasetName, trainingMethod }) {
         <div style={{ 
           marginBottom: '20px', 
           padding: '15px', 
-          backgroundColor: '#fff3cd', 
+          backgroundColor: '#e8f5e8', 
           borderRadius: '8px',
-          border: '1px solid #ffeaa7',
-          color: '#856404'
+          border: '1px solid #c3e6c3',
+          color: '#2d5a2d'
         }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>⚠️ DWL Prediction Not Supported</div>
+          <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
+            {isCustomModel ? 'ℹ️ Custom DWL Model Testing' : 'ℹ️ DWL Model Testing'}
+          </div>
           <div style={{ fontSize: '0.9em' }}>
-            DWL training currently only returns predictions, not the trained model. 
-            The test feature uses untrained weights and will not provide meaningful results.
+            {isCustomModel 
+              ? 'Custom DWL training provides predictions during training. The test feature will use the base BERT model for inference.'
+              : 'DWL training provides predictions during training. The test feature will use the base model for inference. For best results, use traditional training method for model testing.'
+            }
           </div>
         </div>
       )}
@@ -157,38 +175,36 @@ function TestModel({ modelName, datasetName, trainingMethod }) {
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder={trainingMethod === 'dwl' ? "DWL prediction not supported yet..." : "Enter text for prediction..."}
-            disabled={trainingMethod === 'dwl'}
+            placeholder="Enter text for prediction..."
             style={{
               width: '100%',
               padding: '12px',
               border: '2px solid #e1e8ed',
               borderRadius: '8px',
               fontSize: '1em',
-              backgroundColor: trainingMethod === 'dwl' ? '#f8f9fa' : 'white',
-              color: trainingMethod === 'dwl' ? '#6c757d' : '#2c3e50',
+              backgroundColor: 'white',
+              color: '#2c3e50',
               transition: 'border-color 0.2s',
-              cursor: trainingMethod === 'dwl' ? 'not-allowed' : 'text'
+              cursor: 'text'
             }}
           />
         </div>
         <button 
           type="submit" 
-          disabled={trainingMethod === 'dwl'}
           style={{
             padding: '12px 24px',
             fontSize: '1em',
             fontWeight: 'bold',
-            backgroundColor: trainingMethod === 'dwl' ? '#95a5a6' : '#3498db',
+            backgroundColor: '#3498db',
             color: 'white',
             border: 'none',
             borderRadius: '8px',
-            cursor: trainingMethod === 'dwl' ? 'not-allowed' : 'pointer',
+            cursor: 'pointer',
             transition: 'all 0.2s',
             boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
           }}
         >
-          {trainingMethod === 'dwl' ? '🚫 Not Available' : '🔮 Predict'}
+          🔮 Predict
         </button>
       </form>
       
@@ -242,7 +258,11 @@ function TrainStream() {
   const [selectedModel, setSelectedModel] = useState("");
   const [selectedDataset, setSelectedDataset] = useState("");
   const [selectedTrainingMethod, setSelectedTrainingMethod] = useState("dwl");
+  const [modelType, setModelType] = useState("pretrained");
   const [formError, setFormError] = useState("");
+  const [queueStatus, setQueueStatus] = useState(null);
+  const [jobId, setJobId] = useState(null);
+  const [showLoraSection, setShowLoraSection] = useState(false);
 
   // Class labels for different datasets
   const classLabelsMap = {
@@ -300,19 +320,74 @@ function TrainStream() {
     setSelectedTrainingMethod(trainingMethod);
   };
 
+  // Function to check queue status
+  const checkQueueStatus = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/queue-status`);
+      if (response.ok) {
+        const status = await response.json();
+        setQueueStatus(status);
+      }
+    } catch (error) {
+      console.error("Error checking queue status:", error);
+    }
+  };
+
+  // Check queue status on component mount and periodically
+  React.useEffect(() => {
+    checkQueueStatus();
+    const interval = setInterval(checkQueueStatus, 5000); // Check every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
+
   // Parameter validation function
   function validateParams(formData) {
-    // 'pretrained' is only present if checked
-    if (!formData.get("pretrained")) {
-      setFormError("Currently only supports pretrain.");
+    // Check if pretrained is enabled
+    const pretrained = formData.get("pretrained");
+    if (pretrained !== "true") {
+      setFormError("Currently only supports pretrained models.");
       return false;
     }
+    
+    // For custom models, validate required parameters
+    const custom = formData.get("custom");
+    if (custom === "true") {
+      const modelConfig = formData.get("model_config");
+      if (!modelConfig) {
+        setFormError("Custom model configuration is required.");
+        return false;
+      }
+    } else {
+      // For pre-trained models, check if model is selected
+      const modelName = formData.get("model_name");
+      if (!modelName) {
+        setFormError("Please select a pre-trained model.");
+        return false;
+      }
+    }
+    
+    // Check if dataset is selected
+    const datasetName = formData.get("dataset_name");
+    if (!datasetName) {
+      setFormError("Please select a dataset.");
+      return false;
+    }
+    
     setFormError("");
     return true;
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check if user is logged in
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setFormError("Please sign in to start training. Training requires credits and authentication.");
+      setIsTraining(false);
+      return;
+    }
+    
     setLogs("");
     setResults("");
     setIsTraining(true);
@@ -320,7 +395,56 @@ function TrainStream() {
 
     const form = e.target;
     const formData = new FormData(form);
-    setSelectedModel(formData.get("model_name"));
+    
+    // Handle model type and name
+    const modelType = formData.get("model_type");
+    if (modelType === "custom") {
+      // For custom models, we don't need model_name, but we need custom parameters
+      formData.delete("model_name");
+      formData.set("custom", "true");
+      
+      // Handle pretrained checkbox for custom models
+      const pretrained = formData.get("pretrained") === "on";
+      formData.set("pretrained", pretrained ? "true" : "false");
+      
+      // Add custom model configuration
+      const customConfig = {
+        vocab_size: parseInt(formData.get("vocab_size") || "30522"),
+        d_model: parseInt(formData.get("d_model") || "768"),
+        nhead: parseInt(formData.get("nhead") || "12"),
+        num_layers: parseInt(formData.get("num_layers") || "12"),
+        max_len: parseInt(formData.get("max_len") || "512"),
+        pad_token_id: parseInt(formData.get("pad_token_id") || "0")
+      };
+      formData.set("model_config", JSON.stringify(customConfig));
+    } else {
+      // For pre-trained models
+      formData.set("custom", "false");
+      setSelectedModel(formData.get("model_name"));
+      
+      // Handle pretrained checkbox for pre-trained models
+      const pretrained = formData.get("pretrained") === "on";
+      formData.set("pretrained", pretrained ? "true" : "false");
+    }
+    
+    // Set selectedModel for custom models too (use a default model name for testing)
+    if (modelType === "custom") {
+      setSelectedModel("bert-base-uncased"); // Default model for custom model testing
+    }
+    
+    // Handle LoRA configuration
+    const applyLora = formData.get("apply_lora") === "on";
+    formData.set("apply_lora", applyLora ? "true" : "false");
+    
+    if (applyLora) {
+      const loraConfig = {
+        r: parseInt(formData.get("lora_r") || "8"),
+        alpha: parseInt(formData.get("lora_alpha") || "16"),
+        dropout: parseFloat(formData.get("lora_dropout") || "0.1"),
+        target_modules: formData.get("lora_target_modules") || "q_proj,v_proj"
+      };
+      formData.set("lora_config_dict", JSON.stringify(loraConfig));
+    }
 
     // Debug: Log what we're sending
     console.log("Form data being sent:");
@@ -350,6 +474,13 @@ function TrainStream() {
     if (learningRate && !isNaN(parseFloat(learningRate))) {
       formData.set("learning_rate", parseFloat(learningRate).toString());
     }
+    
+    // Set num_classes based on selected dataset
+    const datasetName = formData.get("dataset_name");
+    if (datasetName && classLabelsMap[datasetName]) {
+      const numClasses = classLabelsMap[datasetName].length;
+      formData.set("num_classes", numClasses.toString());
+    }
 
     // Validate parameters
     if (!validateParams(formData)) {
@@ -361,8 +492,19 @@ function TrainStream() {
     try {
       console.log("Sending request to:", `${BACKEND_URL}/train/stream`);
       
+      // Get auth token
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setLogs("Authentication required. Please log in again.");
+        setIsTraining(false);
+        return;
+      }
+
       const response = await fetch(`${BACKEND_URL}/train/stream`, {
         method: "POST",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData,
       });
 
@@ -448,6 +590,33 @@ function TrainStream() {
         DWL Model Trainer
       </h2>
       
+      {/* Queue Status Display */}
+      {queueStatus && (
+        <div style={{ 
+          marginBottom: '20px', 
+          padding: '12px', 
+          background: queueStatus.active_job.id ? '#fff3cd' : '#d1ecf1', 
+          border: `1px solid ${queueStatus.active_job.id ? '#ffeaa7' : '#bee5eb'}`, 
+          borderRadius: '8px',
+          color: '#0c5460',
+          fontSize: '0.9em'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <strong>🖥️ GPU:</strong> {queueStatus.gpu_available ? '✅ Free' : '❌ Busy'}
+            </div>
+            <div>
+              <strong>📊 Queue:</strong> {queueStatus.queue_size} waiting
+            </div>
+          </div>
+          {queueStatus.active_job.id && (
+            <div style={{ marginTop: '8px', fontSize: '0.85em' }}>
+              <strong>🔄 Training:</strong> Job {queueStatus.active_job.id.slice(0, 8)}...
+            </div>
+          )}
+        </div>
+      )}
+      
       <form onSubmit={handleSubmit} style={{ 
         background: 'white', 
         padding: '30px', 
@@ -497,35 +666,189 @@ function TrainStream() {
         {/* Model Selection */}
         <div style={{ marginBottom: '25px' }}>
           <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#2c3e50' }}>
-            Model Name:
+            Model Type:
           </label>
-          <select name="model_name" required style={{
-            width: '100%',
-            padding: '12px',
-            border: '2px solid #e1e8ed',
-            borderRadius: '8px',
-            fontSize: '1em',
-            backgroundColor: 'white',
-            transition: 'border-color 0.2s'
-          }}>
-            <option value="">Select a model</option>
-            <option value="bert-base-uncased">BERT Base</option>
-            <option value="distilbert-base-uncased">DistilBERT</option>
-            <option value="roberta-base">RoBERTa</option>
-            <option value="google/electra-base-discriminator">ELECTRA</option>
-            <option value="albert-base-v2">ALBERT</option>
-            <option value="microsoft/deberta-base">DeBERTa</option>
-            <option value="funnel-transformer/small">Funnel</option>
-            <option value="google/mobilebert-uncased">MobileBERT</option>
-            <option value="prajjwal1/bert-tiny">TinyBERT</option>
-            <option value="microsoft/MiniLM-L12-H384-uncased">MiniLM</option>
-            <option value="camembert-base">CamemBERT</option>
-            <option value="xlm-roberta-base">XLM-RoBERTa</option>
-            <option value="facebook/bart-base">BART</option>
-            <option value="bert-base-multilingual-uncased">mBERT</option>
-            <option value="microsoft/layoutlm-base-uncased">LayoutLM</option>
+          <select 
+            name="model_type" 
+            onChange={(e) => setModelType(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              border: '2px solid #e1e8ed',
+              borderRadius: '8px',
+              fontSize: '1em',
+              backgroundColor: 'white',
+              transition: 'border-color 0.2s'
+            }}
+          >
+            <option value="pretrained">Pre-trained Model</option>
+            <option value="custom">Custom Transformer</option>
           </select>
         </div>
+
+        {/* Pre-trained Model Selection */}
+        {modelType === 'pretrained' && (
+          <div style={{ marginBottom: '25px' }}>
+            <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#2c3e50' }}>
+              Pre-trained Model:
+            </label>
+            <select name="model_name" required style={{
+              width: '100%',
+              padding: '12px',
+              border: '2px solid #e1e8ed',
+              borderRadius: '8px',
+              fontSize: '1em',
+              backgroundColor: 'white',
+              transition: 'border-color 0.2s'
+            }}>
+              <option value="">Select a model</option>
+              <option value="bert-base-uncased">BERT Base</option>
+              <option value="distilbert-base-uncased">DistilBERT</option>
+              <option value="roberta-base">RoBERTa</option>
+              <option value="google/electra-base-discriminator">ELECTRA</option>
+              <option value="albert-base-v2">ALBERT</option>
+              <option value="microsoft/deberta-base">DeBERTa</option>
+              <option value="funnel-transformer/small">Funnel</option>
+              <option value="google/mobilebert-uncased">MobileBERT</option>
+              <option value="prajjwal1/bert-tiny">TinyBERT</option>
+              <option value="microsoft/MiniLM-L12-H384-uncased">MiniLM</option>
+              <option value="camembert-base">CamemBERT</option>
+              <option value="xlm-roberta-base">XLM-RoBERTa</option>
+              <option value="facebook/bart-base">BART</option>
+              <option value="bert-base-multilingual-uncased">mBERT</option>
+              <option value="microsoft/layoutlm-base-uncased">LayoutLM</option>
+            </select>
+          </div>
+        )}
+
+        {/* Custom Model Configuration */}
+        {modelType === 'custom' && (
+          <div style={{ marginBottom: '25px', padding: '20px', border: '2px solid #e1e8ed', borderRadius: '8px', backgroundColor: '#f8f9fa' }}>
+            <h3 style={{ marginTop: '0', color: '#2c3e50' }}>Custom Transformer Configuration</h3>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#2c3e50' }}>
+                  Vocabulary Size:
+                </label>
+                <input 
+                  type="number" 
+                  name="vocab_size" 
+                  defaultValue={30522}
+                  min="1000"
+                  max="100000"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '0.9em'
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#2c3e50' }}>
+                  Model Dimension (d_model):
+                </label>
+                <input 
+                  type="number" 
+                  name="d_model" 
+                  defaultValue={768}
+                  min="128"
+                  max="4096"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '0.9em'
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#2c3e50' }}>
+                  Number of Heads (nhead):
+                </label>
+                <input 
+                  type="number" 
+                  name="nhead" 
+                  defaultValue={12}
+                  min="1"
+                  max="64"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '0.9em'
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#2c3e50' }}>
+                  Number of Layers:
+                </label>
+                <input 
+                  type="number" 
+                  name="num_layers" 
+                  defaultValue={12}
+                  min="1"
+                  max="48"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '0.9em'
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#2c3e50' }}>
+                  Max Sequence Length:
+                </label>
+                <input 
+                  type="number" 
+                  name="max_len" 
+                  defaultValue={512}
+                  min="128"
+                  max="4096"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '0.9em'
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#2c3e50' }}>
+                  Pad Token ID:
+                </label>
+                <input 
+                  type="number" 
+                  name="pad_token_id" 
+                  defaultValue={0}
+                  min="0"
+                  max="100000"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '0.9em'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Dataset Selection */}
         <div style={{ marginBottom: '25px' }}>
@@ -579,6 +902,155 @@ function TrainStream() {
           />
         </div>
 
+        {/* LoRA Toggle */}
+        <div style={{ marginBottom: '20px' }}>
+          <button
+            type="button"
+            onClick={() => setShowLoraSection(!showLoraSection)}
+            style={{
+              padding: '10px 20px',
+              fontSize: '1em',
+              fontWeight: 'bold',
+              backgroundColor: showLoraSection ? '#3498db' : '#95a5a6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            {showLoraSection ? '🔽' : '▶️'} LoRA Configuration {showLoraSection ? '(Advanced)' : ''}
+          </button>
+          {!showLoraSection && (
+            <p style={{ margin: '5px 0 0 0', fontSize: '0.9em', color: '#666', fontStyle: 'italic' }}>
+              Click to configure LoRA (Low-Rank Adaptation) parameters for efficient fine-tuning
+            </p>
+          )}
+        </div>
+
+        {/* LoRA Configuration */}
+        {showLoraSection && (
+          <div style={{ marginBottom: '25px', padding: '20px', border: '2px solid #e1e8ed', borderRadius: '8px', backgroundColor: '#f8f9fa' }}>
+            <h3 style={{ marginTop: '0', color: '#2c3e50' }}>LoRA (Low-Rank Adaptation) Configuration</h3>
+            
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input 
+                  type="checkbox" 
+                  name="apply_lora" 
+                  defaultChecked={false}
+                  style={{ transform: 'scale(1.2)' }}
+                />
+                <span style={{ fontWeight: 'bold', color: '#2c3e50' }}>Enable LoRA</span>
+              </label>
+              <p style={{ margin: '5px 0 0 0', fontSize: '0.9em', color: '#666' }}>
+                LoRA reduces the number of trainable parameters by using low-rank adaptation matrices.
+              </p>
+            </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#2c3e50' }}>
+                LoRA Rank (r):
+              </label>
+              <input 
+                type="number" 
+                name="lora_r" 
+                defaultValue={8}
+                min="1"
+                max="64"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '0.9em'
+                }}
+              />
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.8em', color: '#666' }}>
+                Lower rank = fewer parameters
+              </p>
+            </div>
+            
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#2c3e50' }}>
+                LoRA Alpha:
+              </label>
+              <input 
+                type="number" 
+                name="lora_alpha" 
+                defaultValue={16}
+                min="1"
+                max="128"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '0.9em'
+                }}
+              />
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.8em', color: '#666' }}>
+                Scaling factor for LoRA weights
+              </p>
+            </div>
+            
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#2c3e50' }}>
+                LoRA Dropout:
+              </label>
+              <input 
+                type="number" 
+                step="0.01"
+                name="lora_dropout" 
+                defaultValue={0.1}
+                min="0"
+                max="0.5"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '0.9em'
+                }}
+              />
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.8em', color: '#666' }}>
+                Dropout rate for LoRA layers
+              </p>
+            </div>
+            
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#2c3e50' }}>
+                Target Modules:
+              </label>
+              <select 
+                name="lora_target_modules" 
+                defaultValue="q_proj,v_proj"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '0.9em'
+                }}
+              >
+                <option value="q_proj,v_proj">Query & Value projections</option>
+                <option value="q_proj,k_proj,v_proj">Query, Key & Value projections</option>
+                <option value="q_proj,k_proj,v_proj,o_proj">All attention projections</option>
+                <option value="all">All linear layers</option>
+              </select>
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.8em', color: '#666' }}>
+                Which layers to apply LoRA to
+              </p>
+            </div>
+          </div>
+        </div>
+        )}
+
         {/* Pretrained Checkbox */}
         <div style={{ marginBottom: '30px' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -591,6 +1063,15 @@ function TrainStream() {
             <span style={{ fontWeight: 'bold', color: '#2c3e50' }}>Use Pretrained Model</span>
           </label>
         </div>
+
+        {/* Hidden fields with default values */}
+        <input type="hidden" name="epoch_max" value="100" />
+        <input type="hidden" name="step_size" value="10" />
+        <input type="hidden" name="patience_max" value="5" />
+        <input type="hidden" name="num_components" value="50" />
+        <input type="hidden" name="sampling_param" value="1.0" />
+        <input type="hidden" name="bdr_compression_perc" value="10.0" />
+        <input type="hidden" name="num_classes" value="0" />
 
         {/* Custom Sample Addition */}
         <div style={{ marginBottom: '30px' }}>
@@ -683,22 +1164,24 @@ function TrainStream() {
         {/* Submit Button */}
         <button 
           type="submit" 
-          disabled={isTraining}
+          disabled={isTraining || (queueStatus && queueStatus.active_job.id && !jobId)}
           style={{
             width: '100%',
             padding: '15px',
             fontSize: '1.1em',
             fontWeight: 'bold',
-            backgroundColor: isTraining ? '#95a5a6' : '#3498db',
+            backgroundColor: isTraining ? '#95a5a6' : (queueStatus && queueStatus.active_job.id && !jobId) ? '#f39c12' : '#3498db',
             color: 'white',
             border: 'none',
             borderRadius: '8px',
-            cursor: isTraining ? 'not-allowed' : 'pointer',
+            cursor: (isTraining || (queueStatus && queueStatus.active_job.id && !jobId)) ? 'not-allowed' : 'pointer',
             transition: 'all 0.2s',
             boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
           }}
         >
-          {isTraining ? "🔄 Training..." : "🚀 Start Training"}
+          {isTraining ? "🔄 Training..." : 
+           (queueStatus && queueStatus.active_job.id && !jobId) ? "⏳ GPU Busy - Training in Progress" : 
+           "🚀 Start Training"}
         </button>
       </form>
       
@@ -721,6 +1204,28 @@ function TrainStream() {
       )}
       
       <div style={{ marginTop: '30px' }}>
+        {/* Job Status Display */}
+        {jobId && (
+          <div style={{ 
+            marginBottom: '20px', 
+            padding: '12px', 
+            background: '#e8f5e8', 
+            border: '1px solid #c3e6c3', 
+            borderRadius: '8px',
+            color: '#155724',
+            fontSize: '0.9em'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <strong>🎯 Job:</strong> {jobId.slice(0, 8)}...
+              </div>
+              <div>
+                <strong>Status:</strong> {isTraining ? '🔄 Training' : '✅ Done'}
+              </div>
+            </div>
+          </div>
+        )}
+        
         <h3 style={{ color: '#2c3e50', marginBottom: '15px', fontSize: '1.4em' }}>📋 Backend Logs:</h3>
         <pre style={{ 
           background: "#2c3e50", 
@@ -764,7 +1269,7 @@ function TrainStream() {
           </>
         )}
         
-        {logs.includes("Training complete") && (
+        {(logs.includes("Training complete") || logs.includes("✅ Training complete!")) && (
           <div style={{ marginTop: '20px', textAlign: 'center' }}>
             {selectedTrainingMethod === 'dwl' ? (
               <div style={{ 
@@ -819,9 +1324,14 @@ function TrainStream() {
         )}
         
         {/* TestModel component for inference */}
-        {logs.includes("Training complete") && selectedModel && (
+        {(logs.includes("Training complete") || logs.includes("✅ Training complete!")) && (
           <div style={{ marginTop: '30px' }}>
-            <TestModel modelName={selectedModel} datasetName={selectedDataset} trainingMethod={selectedTrainingMethod} />
+            <TestModel 
+              modelName={selectedModel} 
+              datasetName={selectedDataset} 
+              trainingMethod={selectedTrainingMethod}
+              isCustomModel={selectedModel === "bert-base-uncased" && selectedTrainingMethod === "dwl"}
+            />
           </div>
         )}
       </div>
@@ -1423,11 +1933,76 @@ function ComparisonResults({ results, datasetName }) {
   );
 }
 
-function App() {
+function AppContent() {
+  const { user, loading } = useAuth();
   const [page, setPage] = useState("intro");
+  const [currentRoute, setCurrentRoute] = useState('main');
+
+  useEffect(() => {
+    // Simple routing based on URL
+    const path = window.location.pathname;
+    if (path === '/login') {
+      setCurrentRoute('login');
+    } else {
+      setCurrentRoute('main');
+    }
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        fontSize: '1.2em',
+        color: '#2c3e50'
+      }}>
+        Loading...
+      </div>
+    );
+  }
+
+  // Show login page if on login route
+  if (currentRoute === 'login') {
+    return <Login />;
+  }
 
   return (
     <div>
+      {/* Login button in top right corner */}
+      {!user && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 1000
+        }}>
+          <button
+            onClick={() => {
+              setCurrentRoute('login');
+              window.history.pushState({}, '', '/login');
+            }}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#3498db',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '1em',
+              fontWeight: 'bold',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            🔐 Sign In
+          </button>
+        </div>
+      )}
+
+      {/* User profile when logged in */}
+      {user && <UserProfile />}
+
       {page === "intro" ? (
         <DWLIntro onStart={() => setPage("train")}/>
       ) : (
@@ -1437,6 +2012,14 @@ function App() {
         </>
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
