@@ -18,6 +18,8 @@ const Login = () => {
       return;
     }
     
+    console.log('Google OAuth Client ID found:', clientId ? 'Configured' : 'Not configured');
+    
     console.log('Google OAuth Client ID:', clientId);
     console.log('Google object available:', !!window.google);
     
@@ -157,9 +159,8 @@ const Login = () => {
           marginBottom: '20px'
         }}></div>
         
-        {/* Fallback message if Google OAuth doesn't load */}
-        <div id="oauth-fallback" style={{
-          display: 'none',
+        {/* Demo mode option - always visible */}
+        <div style={{
           padding: '20px',
           backgroundColor: '#e8f5e8',
           border: '1px solid #c3e6c3',
@@ -168,10 +169,60 @@ const Login = () => {
           color: '#2d5a2d'
         }}>
           <div style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '1.1em' }}>
-            🔧 Demo Mode - Google OAuth Not Configured
+            🎭 Demo Mode Available
           </div>
           <div style={{ fontSize: '0.9em', marginBottom: '15px', lineHeight: '1.5' }}>
-            To enable Google Sign-In, you need to set up Google OAuth credentials:
+            Try DWL without signing in! Demo mode gives you $10 in credits to test the platform.
+          </div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+            <button
+              onClick={() => {
+                // Create a demo user for testing
+                const demoUser = {
+                  google_id: 'demo-user-123',
+                  email: 'demo@example.com',
+                  name: 'Demo User',
+                  credits: 10.0
+                };
+                localStorage.setItem('demoUser', JSON.stringify(demoUser));
+                // Create a demo token that the backend can recognize
+                localStorage.setItem('authToken', 'demo-token-123');
+                window.history.pushState({}, '', '/?page=train');
+                window.location.reload();
+              }}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '1em',
+                fontWeight: 'bold',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              🎭 Try Demo Mode
+            </button>
+          </div>
+        </div>
+
+        {/* Fallback message if Google OAuth doesn't load */}
+        <div id="oauth-fallback" style={{
+          display: 'none',
+          padding: '20px',
+          backgroundColor: '#fff3cd',
+          border: '1px solid #ffeaa7',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          color: '#856404'
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '1.1em' }}>
+            🔧 Google OAuth Not Configured
+          </div>
+          <div style={{ fontSize: '0.9em', marginBottom: '15px', lineHeight: '1.5' }}>
+            To enable Google Sign-In, you need to set up Google OAuth credentials. 
+            Check the <code>GOOGLE_OAUTH_SETUP.md</code> file for detailed instructions.
           </div>
           <div style={{ 
             fontSize: '0.85em', 
@@ -207,31 +258,6 @@ const Login = () => {
             >
               🔄 Refresh After Setup
             </button>
-            <button
-              onClick={() => {
-                // Create a demo user for testing
-                const demoUser = {
-                  google_id: 'demo-user-123',
-                  email: 'demo@example.com',
-                  name: 'Demo User',
-                  credits: 10.0
-                };
-                localStorage.setItem('demoUser', JSON.stringify(demoUser));
-                window.history.pushState({}, '', '/');
-                window.location.reload();
-              }}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#3498db',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '0.9em'
-              }}
-            >
-              🎭 Try Demo Mode
-            </button>
           </div>
         </div>
 
@@ -246,7 +272,7 @@ const Login = () => {
 
         <button
           onClick={() => {
-            window.history.pushState({}, '', '/');
+            window.history.pushState({}, '', '/?page=train');
             window.location.reload();
           }}
           style={{
@@ -259,7 +285,7 @@ const Login = () => {
             fontSize: '0.9em'
           }}
         >
-          ← Back to Main
+          ← Back to Webapp
         </button>
       </div>
     </div>

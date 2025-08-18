@@ -9,21 +9,67 @@ import UserProfile from './UserProfile';
 
 function DWLIntro({ onStart }) {
   return (
-    <div style={{ maxWidth: 600, margin: '2em auto', background: '#f9f9f9', padding: '2em', borderRadius: '8px' }}>
-      <h1>What is DWL?</h1>
-      <p>
+    <div style={{ maxWidth: 600, margin: '2em auto', background: 'white', padding: '2em', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', border: '1px solid #e1e8ed' }}>
+      <h1 style={{ color: '#2c3e50', marginBottom: '20px' }}>What is DWL?</h1>
+      <p style={{ color: '#2c3e50', fontSize: '1.1em', lineHeight: '1.6' }}>
         <strong>DWL</strong> is a model accelerator that speeds up training by <strong>10-40x</strong> without any loss in performance.
       </p>
-      <ul>
+      <ul style={{ color: '#2c3e50', lineHeight: '1.6' }}>
         <li>Works with <strong>all model types</strong>: image, text, and multi-modal.</li>
         <li>Supports both <strong>custom models</strong> and <strong>predefined models</strong>.</li>
         <li>Major <strong>cost</strong> and <strong>time saver</strong> for machine learning engineers and researchers.</li>
         <li>Easy to use: just select your model and dataset, and DWL does the rest!</li>
       </ul>
-      <p>
+      <p style={{ color: '#2c3e50', fontSize: '1.1em', lineHeight: '1.6' }}>
         DWL is designed to make large-scale training accessible and efficient for everyone.
       </p>
-      <button onClick={onStart} style={{ marginTop: '2em', padding: '0.5em 2em', fontSize: '1.1em' }}>Start Training</button>
+      
+      {/* CLI Tool Information */}
+      <div style={{ 
+        marginTop: '2em', 
+        padding: '1.5em', 
+        backgroundColor: '#f8f9fa', 
+        border: '1px solid #e1e8ed', 
+        borderRadius: '8px',
+        color: '#2c3e50'
+      }}>
+        <h3 style={{ margin: '0 0 10px 0', color: '#2c3e50', fontSize: '1.2em' }}>
+          💻 Command Line Interface
+        </h3>
+        <p style={{ margin: '0 0 10px 0', fontSize: '0.95em', lineHeight: '1.5', color: '#2c3e50' }}>
+          Prefer the command line? DWL is also available as a Python CLI tool with the same powerful features.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+          <code style={{ 
+            backgroundColor: '#f8f9fa', 
+            padding: '6px 10px', 
+            borderRadius: '4px',
+            color: '#2c3e50',
+            fontSize: '0.9em',
+            border: '1px solid #e1e8ed'
+          }}>
+            pip install dwl-cli
+          </code>
+          <a 
+            href="https://pypi.org/project/dwl-cli/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{
+              color: '#3498db',
+              textDecoration: 'none',
+              fontWeight: 'bold',
+              fontSize: '0.9em'
+            }}
+          >
+            📦 View on PyPI →
+          </a>
+        </div>
+      </div>
+      
+      <button onClick={() => {
+        onStart();
+        window.history.pushState({}, '', '/?page=train');
+      }} style={{ marginTop: '2em', padding: '0.5em 2em', fontSize: '1.1em' }}>Start Training</button>
     </div>
   );
 }
@@ -258,6 +304,7 @@ function TrainStream() {
   const [selectedModel, setSelectedModel] = useState("");
   const [selectedDataset, setSelectedDataset] = useState("");
   const [selectedTrainingMethod, setSelectedTrainingMethod] = useState("dwl");
+  const [completedTrainingMethod, setCompletedTrainingMethod] = useState(null); // Track the method used for completed training
   const [modelType, setModelType] = useState("pretrained");
   const [formError, setFormError] = useState("");
   const [queueStatus, setQueueStatus] = useState(null);
@@ -392,6 +439,7 @@ function TrainStream() {
     setResults("");
     setIsTraining(true);
     setFormError("");
+    setCompletedTrainingMethod(null); // Reset when starting new training
 
     const form = e.target;
     const formData = new FormData(form);
@@ -488,6 +536,9 @@ function TrainStream() {
       return;
     }
 
+    // Store the training method that will be used for this training session
+    const trainingMethodUsed = formData.get("training_method");
+
     // Use fetch to POST to /train/stream and read the response as a stream
     try {
       console.log("Sending request to:", `${BACKEND_URL}/train/stream`);
@@ -577,6 +628,9 @@ function TrainStream() {
         setResults((prev) => prev + newResults);
         logBuffer = lines[lines.length - 1]; // keep incomplete line for next chunk
       }
+      
+      // Set the completed training method when training finishes successfully
+      setCompletedTrainingMethod(trainingMethodUsed);
     } catch (error) {
       console.error("Training error:", error);
       setLogs(`Error connecting to backend: ${error.message}\n\nPlease make sure the backend server is running at ${BACKEND_URL}`);
@@ -1271,7 +1325,7 @@ function TrainStream() {
         
         {(logs.includes("Training complete") || logs.includes("✅ Training complete!")) && (
           <div style={{ marginTop: '20px', textAlign: 'center' }}>
-            {selectedTrainingMethod === 'dwl' ? (
+            {completedTrainingMethod === 'dwl' ? (
               <div style={{ 
                 padding: '15px', 
                 backgroundColor: '#fff3cd', 
@@ -1329,8 +1383,8 @@ function TrainStream() {
             <TestModel 
               modelName={selectedModel} 
               datasetName={selectedDataset} 
-              trainingMethod={selectedTrainingMethod}
-              isCustomModel={selectedModel === "bert-base-uncased" && selectedTrainingMethod === "dwl"}
+              trainingMethod={completedTrainingMethod || selectedTrainingMethod}
+              isCustomModel={selectedModel === "bert-base-uncased" && (completedTrainingMethod || selectedTrainingMethod) === "dwl"}
             />
           </div>
         )}
@@ -1941,10 +1995,17 @@ function AppContent() {
   useEffect(() => {
     // Simple routing based on URL
     const path = window.location.pathname;
+    const urlParams = new URLSearchParams(window.location.search);
+    const pageParam = urlParams.get('page');
+    
     if (path === '/login') {
       setCurrentRoute('login');
     } else {
       setCurrentRoute('main');
+      // Set page based on URL parameter
+      if (pageParam === 'train') {
+        setPage('train');
+      }
     }
   }, []);
 
@@ -2007,7 +2068,10 @@ function AppContent() {
         <DWLIntro onStart={() => setPage("train")}/>
       ) : (
         <>
-          <button onClick={() => setPage("intro")} style={{ margin: '1em', float: 'right' }}>What is DWL?</button>
+          <button onClick={() => {
+            setPage("intro");
+            window.history.pushState({}, '', '/');
+          }} style={{ margin: '1em', float: 'right' }}>What is DWL?</button>
           <TrainStream />
         </>
       )}
