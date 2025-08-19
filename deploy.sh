@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# DWL App GitHub Pages Deployment Script
+# Eury App GitHub Pages Deployment Script
 
 set -e  # Exit on any error
 
-echo "🚀 Starting DWL App deployment to GitHub Pages..."
+echo "🚀 Starting Eury App deployment to GitHub Pages..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -76,11 +76,11 @@ if [ ! -d ".git" ]; then
     print_status "Initializing git repository..."
     git init
     git add .
-    git commit -m "Initial commit: DWL App with ngrok configuration"
+    git commit -m "Initial commit: Eury App with ngrok configuration"
 else
     print_status "Git repository already exists. Adding changes..."
     git add .
-    git commit -m "Update DWL App with ngrok configuration: $NGROK_URL"
+    git commit -m "Update Eury App with ngrok configuration: $NGROK_URL"
 fi
 
 print_success "Git changes committed!"

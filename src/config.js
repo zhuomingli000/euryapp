@@ -1,4 +1,4 @@
-// Configuration file for the DWL App
+// Configuration file for the Eury App
 
 // Backend URL Configuration
 // Change this URL based on your setup:
@@ -14,9 +14,9 @@ export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://unique-
 
 // App Configuration
 export const APP_CONFIG = {
-  name: "DWL Model Trainer",
+  name: "Eury Model Trainer",
   version: "1.0.0",
-  description: "A web interface for training models using DWL (Deep Weight Learning)",
+  description: "A web interface for training models using Eury (Deep Weight Learning)",
   features: {
     streaming: true,
     customSamples: true,

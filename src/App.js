@@ -7,21 +7,21 @@ import UserProfile from './UserProfile';
 // Backend configuration is now imported from config.js
 // To change the backend URL, edit the BACKEND_URL in config.js
 
-function DWLIntro({ onStart }) {
+function EuryIntro({ onStart }) {
   return (
     <div style={{ maxWidth: 600, margin: '2em auto', background: 'white', padding: '2em', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', border: '1px solid #e1e8ed' }}>
-      <h1 style={{ color: '#2c3e50', marginBottom: '20px' }}>What is DWL?</h1>
+      <h1 style={{ color: '#2c3e50', marginBottom: '20px' }}>What is Eury?</h1>
       <p style={{ color: '#2c3e50', fontSize: '1.1em', lineHeight: '1.6' }}>
-        <strong>DWL</strong> is a model accelerator that speeds up training by <strong>10-40x</strong> without any loss in performance.
+        <strong>Eury</strong> is a model accelerator that speeds up training by <strong>10-40x</strong> without any loss in performance.
       </p>
       <ul style={{ color: '#2c3e50', lineHeight: '1.6' }}>
         <li>Works with <strong>all model types</strong>: image, text, and multi-modal.</li>
         <li>Supports both <strong>custom models</strong> and <strong>predefined models</strong>.</li>
         <li>Major <strong>cost</strong> and <strong>time saver</strong> for machine learning engineers and researchers.</li>
-        <li>Easy to use: just select your model and dataset, and DWL does the rest!</li>
+        <li>Easy to use: just select your model and dataset, and Eury does the rest!</li>
       </ul>
       <p style={{ color: '#2c3e50', fontSize: '1.1em', lineHeight: '1.6' }}>
-        DWL is designed to make large-scale training accessible and efficient for everyone.
+        Eury is designed to make large-scale training accessible and efficient for everyone.
       </p>
       
       {/* CLI Tool Information */}
@@ -37,7 +37,7 @@ function DWLIntro({ onStart }) {
           💻 Command Line Interface
         </h3>
         <p style={{ margin: '0 0 10px 0', fontSize: '0.95em', lineHeight: '1.5', color: '#2c3e50' }}>
-          Prefer the command line? DWL is also available as a Python CLI tool with the same powerful features.
+          Prefer the command line? Eury is also available as a Python CLI tool with the same powerful features.
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
           <code style={{ 
@@ -48,10 +48,10 @@ function DWLIntro({ onStart }) {
             fontSize: '0.9em',
             border: '1px solid #e1e8ed'
           }}>
-            pip install dwl-cli
+            pip install eury-cli
           </code>
           <a 
-            href="https://pypi.org/project/dwl-cli/" 
+            href="https://pypi.org/project/eury-cli/" 
             target="_blank" 
             rel="noopener noreferrer"
             style={{
@@ -182,7 +182,7 @@ function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = fal
     }}>
       <h3 style={{ color: '#2c3e50', marginBottom: '20px', fontSize: '1.4em' }}>🧪 Test Trained Model</h3>
       
-      {trainingMethod === 'dwl' && (
+      {trainingMethod === 'eury' && (
         <div style={{ 
           marginBottom: '20px', 
           padding: '15px', 
@@ -192,12 +192,12 @@ function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = fal
           color: '#2d5a2d'
         }}>
           <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-            {isCustomModel ? 'ℹ️ Custom DWL Model Testing' : 'ℹ️ DWL Model Testing'}
+            {isCustomModel ? 'ℹ️ Custom Eury Model Testing' : 'ℹ️ Eury Model Testing'}
           </div>
           <div style={{ fontSize: '0.9em' }}>
             {isCustomModel 
-              ? 'Custom DWL training provides predictions during training. The test feature will use the base BERT model for inference.'
-              : 'DWL training provides predictions during training. The test feature will use the base model for inference. For best results, use traditional training method for model testing.'
+              ? 'Custom Eury training provides predictions during training. The test feature will use the base BERT model for inference.'
+              : 'Eury training provides predictions during training. The test feature will use the base model for inference. For best results, use traditional training method for model testing.'
             }
           </div>
         </div>
@@ -294,7 +294,7 @@ function TrainStream() {
   const [isTraining, setIsTraining] = useState(false);
   const [selectedModel, setSelectedModel] = useState("");
   const [selectedDataset, setSelectedDataset] = useState("");
-  const [selectedTrainingMethod, setSelectedTrainingMethod] = useState("dwl");
+  const [selectedTrainingMethod, setSelectedTrainingMethod] = useState("eury");
   const [completedTrainingMethod, setCompletedTrainingMethod] = useState(null); // Track the method used for completed training
   const [modelType, setModelType] = useState("pretrained");
   const [formError, setFormError] = useState("");
@@ -614,7 +614,7 @@ function TrainStream() {
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
       <h2 style={{ textAlign: 'center', color: '#2c3e50', marginBottom: '30px', fontSize: '2.2em' }}>
-        DWL Model Trainer
+        Eury Model Trainer
       </h2>
       
       {/* Queue Status Display */}
@@ -670,12 +670,12 @@ function TrainStream() {
               <input 
                 type="radio" 
                 name="training_method" 
-                value="dwl" 
+                value="eury" 
                 defaultChecked 
                 onChange={(e) => handleTrainingMethodChange(e.target.value)}
                 style={{ transform: 'scale(1.2)' }}
               />
-              <span style={{ fontWeight: 'bold', color: '#2c5aa0', fontSize: '1.1em' }}>🚀 DWL (Faster)</span>
+              <span style={{ fontWeight: 'bold', color: '#2c5aa0', fontSize: '1.1em' }}>🚀 Eury (Faster)</span>
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '8px 16px', borderRadius: '6px', transition: 'all 0.2s' }}>
               <input 
@@ -1298,7 +1298,7 @@ function TrainStream() {
         
         {(logs.includes("Training complete") || logs.includes("✅ Training complete!")) && (
           <div style={{ marginTop: '20px', textAlign: 'center' }}>
-            {completedTrainingMethod === 'dwl' ? (
+            {completedTrainingMethod === 'eury' ? (
               <div style={{ 
                 padding: '15px', 
                 backgroundColor: '#fff3cd', 
@@ -1309,7 +1309,7 @@ function TrainStream() {
               }}>
                 <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>⚠️ Model Download Not Available</div>
                 <div style={{ fontSize: '0.9em', marginBottom: '15px' }}>
-                  DWL training doesn't save the trained model weights. The downloaded file would only contain an untrained model structure.
+                  Eury training doesn't save the trained model weights. The downloaded file would only contain an untrained model structure.
                 </div>
                 <button 
                   disabled
@@ -1357,7 +1357,7 @@ function TrainStream() {
               modelName={selectedModel} 
               datasetName={selectedDataset} 
               trainingMethod={completedTrainingMethod || selectedTrainingMethod}
-              isCustomModel={selectedModel === "bert-base-uncased" && (completedTrainingMethod || selectedTrainingMethod) === "dwl"}
+              isCustomModel={selectedModel === "bert-base-uncased" && (completedTrainingMethod || selectedTrainingMethod) === "eury"}
             />
           </div>
         )}
@@ -2038,13 +2038,13 @@ function AppContent() {
       {user && <UserProfile />}
 
       {page === "intro" ? (
-        <DWLIntro onStart={() => setPage("train")}/>
+        <EuryIntro onStart={() => setPage("train")}/>
       ) : (
         <>
           <button onClick={() => {
             setPage("intro");
             window.history.pushState({}, '', '/');
-          }} style={{ margin: '1em', float: 'right' }}>What is DWL?</button>
+          }} style={{ margin: '1em', float: 'right' }}>What is Eury?</button>
           <TrainStream />
         </>
       )}

@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-console.log('🔧 DWL App Environment Setup');
+console.log('🔧 Eury App Environment Setup');
 console.log('============================\n');
 
 const envPath = path.join(__dirname, '.env');

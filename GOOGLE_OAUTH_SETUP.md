@@ -39,12 +39,12 @@ REACT_APP_BACKEND_URL=https://unique-bullfrog-blatantly.ngrok-free.app
 
 5. **Configure OAuth consent screen**
    - If prompted, configure the OAuth consent screen
-   - Add your app name: "DWL Training App"
+   - Add your app name: "Eury Training App"
    - Add your email as the developer contact
    - Save and continue
 
 6. **Set up OAuth client ID**
-   - **Name**: DWL Training App
+   - **Name**: Eury Training App
    - **Authorized JavaScript origins**:
      - `http://localhost:3000` (for development)
      - `https://your-ngrok-url.ngrok.io` (if using ngrok)

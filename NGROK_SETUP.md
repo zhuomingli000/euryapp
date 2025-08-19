@@ -1,4 +1,4 @@
-# Ngrok Setup Guide for DWL App
+# Ngrok Setup Guide for Eury App
 
 This guide will help you set up ngrok to expose your local backend server to the internet, allowing you to deploy the frontend to GitHub Pages while keeping the backend running locally.
 
@@ -22,7 +22,7 @@ ngrok authtoken YOUR_AUTH_TOKEN
 
 ```bash
 # Navigate to your backend directory
-cd dwlapp/backend
+cd euryapp/backend
 
 # Start the FastAPI server
 python main.py
@@ -52,7 +52,7 @@ Forwarding                    https://abc123.ngrok.io -> http://localhost:8000
 
 Copy the ngrok URL (e.g., `https://abc123.ngrok.io`) and update the configuration:
 
-1. Open `dwlapp/frontend/src/config.js`
+1. Open `euryapp/frontend/src/config.js`
 2. Replace the `BACKEND_URL` with your ngrok URL:
 
 ```javascript
@@ -63,7 +63,7 @@ export const BACKEND_URL = "https://abc123.ngrok.io"; // Your actual ngrok URL
 
 1. Start your React development server:
 ```bash
-cd dwlapp/frontend
+cd euryapp/frontend
 npm start
 ```
 
@@ -75,7 +75,7 @@ npm start
 ### 1. Build the Production Version
 
 ```bash
-cd dwlapp/frontend
+cd euryapp/frontend
 npm run build
 ```
 
@@ -85,7 +85,7 @@ npm run build
 # Initialize git if not already done
 git init
 git add .
-git commit -m "Add DWL app with ngrok configuration"
+git commit -m "Add Eury app with ngrok configuration"
 
 # Add your GitHub repository as remote
 git remote add origin https://github.com/yourusername/your-repo-name.git
@@ -122,7 +122,7 @@ git push -u origin main
 
 For production, use environment variables:
 
-1. Create `.env` file in `dwlapp/frontend/`:
+1. Create `.env` file in `euryapp/frontend/`:
 ```
 REACT_APP_BACKEND_URL=https://your-ngrok-url.ngrok.io
 ```
@@ -170,10 +170,10 @@ app.add_middleware(
 If you have a paid ngrok account, you can use a fixed subdomain:
 
 ```bash
-ngrok http 8000 --subdomain=your-dwl-app
+ngrok http 8000 --subdomain=your-eury-app
 ```
 
-This will give you a consistent URL like `https://your-dwl-app.ngrok.io`.
+This will give you a consistent URL like `https://your-eury-app.ngrok.io`.
 
 ## Next Steps
 

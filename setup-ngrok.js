@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Ngrok Setup Script for DWL App
+ * Ngrok Setup Script for Eury App
  * 
  * This script helps you set up ngrok and update the configuration automatically.
  * 
@@ -99,7 +99,7 @@ function updateGitignore() {
 }
 
 function main() {
-  log('🚀 DWL App Ngrok Setup Script', 'cyan');
+  log('🚀 Eury App Ngrok Setup Script', 'cyan');
   log('================================', 'cyan');
   
   const ngrokUrl = process.argv[2];

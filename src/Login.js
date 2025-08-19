@@ -118,7 +118,7 @@ const Login = () => {
           marginBottom: '10px',
           fontSize: '2.5em'
         }}>
-          🚀 DWL Training
+          🚀 Eury Training
         </h1>
         
         <p style={{
@@ -127,7 +127,7 @@ const Login = () => {
           fontSize: '1.1em',
           lineHeight: '1.5'
         }}>
-          Advanced Deep Learning with DWL Technology
+          Advanced Deep Learning with Eury Technology
         </p>
 
         <div style={{
@@ -172,7 +172,7 @@ const Login = () => {
             🎭 Demo Mode Available
           </div>
           <div style={{ fontSize: '0.9em', marginBottom: '15px', lineHeight: '1.5' }}>
-            Try DWL without signing in! Demo mode gives you $10 in credits to test the platform.
+            Try Eury without signing in! Demo mode gives you $10 in credits to test the platform.
           </div>
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
             <button
