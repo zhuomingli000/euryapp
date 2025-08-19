@@ -153,18 +153,9 @@ function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = fal
     formData.append("training_method", trainingMethod); // Add training method to form data
     formData.append("custom", isCustomModel ? "true" : "false"); // Add custom parameter
     try {
-      // Get auth token
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        setError("Authentication required. Please log in again.");
-        return;
-      }
-
+      // Skip authentication - allow predictions without login
       const res = await fetch(`${BACKEND_URL}/predict`, {
         method: "POST",
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
         body: formData,
       });
       const data = await res.json();
@@ -427,14 +418,6 @@ function TrainStream() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Check if user is logged in
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      setFormError("Please sign in to start training. Training requires credits and authentication.");
-      setIsTraining(false);
-      return;
-    }
-    
     setLogs("");
     setResults("");
     setIsTraining(true);
@@ -543,19 +526,9 @@ function TrainStream() {
     try {
       console.log("Sending request to:", `${BACKEND_URL}/train/stream`);
       
-      // Get auth token
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        setLogs("Authentication required. Please log in again.");
-        setIsTraining(false);
-        return;
-      }
-
+      // Skip authentication - allow training without login
       const response = await fetch(`${BACKEND_URL}/train/stream`, {
         method: "POST",
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
         body: formData,
       });
 
