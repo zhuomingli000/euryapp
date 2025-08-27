@@ -3,9 +3,160 @@ import { BACKEND_URL, APP_CONFIG } from "./config";
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
 import UserProfile from './UserProfile';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+function toXY(lossArr = [], epochTimes = [], { step = 1, addOrigin = true } = {}) {
+  if (!lossArr.length) return [{ x: 0, y: 2.0 }]; // Default loss of 2.0 at time=0
+  let t = 0;
+  const pts = [];
+  if (addOrigin) {
+    pts.push({ x: 0, y: 2.0 }); // starting point at time=0
+  }
+  for (let i = 0; i < lossArr.length; i++) {
+    const dt = Number(epochTimes?.[i] ?? step);
+    t += isFinite(dt) ? dt : step;
+    // keep 1 decimal for readability
+    pts.push({ x: Math.round(t * 10) / 10, y: lossArr[i] });
+  }
+  return pts;
+}
 
 // Backend configuration is now imported from config.js
 // To change the backend URL, edit the BACKEND_URL in config.js
+function LossChart({
+  lossData,
+  timeData,
+  trainingMethod,
+  euryLossData,
+  traditionalLossData,
+  euryTimeData,
+  traditionalTimeData,
+}) {
+  const datasets = [];
+
+  // Eury (completed)
+  if (euryLossData?.length) {
+    datasets.push({
+      label: "Eury (DWL) - Completed",
+      data: toXY(euryLossData, euryTimeData, { step: 1, addOrigin: true }),
+      borderColor: "#3498db",
+      backgroundColor: "rgba(52, 152, 219, 0.1)",
+      borderWidth: 3,
+      fill: false,
+      tension: 0.4,
+      pointBackgroundColor: "#3498db",
+      pointBorderColor: "#ffffff",
+      pointBorderWidth: 2,
+      pointRadius: 4,
+      parsing: false,   // IMPORTANT: use x/y objects
+      spanGaps: true,
+    });
+  }
+
+  // Traditional (completed)
+  if (traditionalLossData?.length) {
+    datasets.push({
+      label: "Traditional - Completed",
+      data: toXY(traditionalLossData, traditionalTimeData, { step: 1, addOrigin: true }),
+      borderColor: "#e74c3c",
+      backgroundColor: "rgba(231, 76, 60, 0.1)",
+      borderWidth: 3,
+      fill: false,
+      tension: 0.4,
+      pointBackgroundColor: "#e74c3c",
+      pointBorderColor: "#ffffff",
+      pointBorderWidth: 2,
+      pointRadius: 4,
+      parsing: false,
+      spanGaps: true,
+    });
+  }
+
+  // Current training run (dashed)
+  // if (lossData?.length) {
+  const isEury = trainingMethod === "eury";
+  datasets.push({
+    label: `${isEury ? "Eury (DWL)" : "Traditional"} - Training Now`,
+    data: toXY(lossData, timeData, { step: 1, addOrigin: true }),
+    borderColor: isEury ? "#2980b9" : "#c0392b",
+    backgroundColor: isEury ? "rgba(41, 128, 185, 0.2)" : "rgba(192, 57, 43, 0.2)",
+    borderWidth: 3,
+    fill: false,
+    tension: 0.4,
+    pointBackgroundColor: isEury ? "#2980b9" : "#c0392b",
+    pointBorderColor: "#ffffff",
+    pointBorderWidth: 2,
+    pointRadius: 4,
+    borderDash: [5, 5],
+    parsing: false,
+    spanGaps: true,
+  });
+  // }
+
+  // if (datasets.length === 0) return null;
+
+  const data = { datasets };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "nearest", intersect: false },
+    plugins: {
+      legend: { position: "top" },
+      tooltip: {
+        callbacks: {
+          // nice tooltip that shows time & loss
+          label: (ctx) => {
+            const { x, y } = ctx.raw || {};
+            return ` ${ctx.dataset.label}: loss=${y}, t=${x}s`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        type: "linear",
+        title: { display: true, text: "Cumulative Time (s)" },
+        grid: { drawOnChartArea: true },
+      },
+      y: {
+        title: { display: true, text: "Loss" },
+        grid: { drawOnChartArea: true },
+      },
+    },
+    elements: {
+      line: { cubicInterpolationMode: "monotone" },
+      point: { hitRadius: 10, hoverRadius: 6 },
+    },
+  };
+
+  return (
+    <div style={{ height: 360 }}>
+      <Line data={data} options={options} />
+    </div>
+  );
+}
+
 
 function EuryIntro({ onStart }) {
   return (
@@ -301,6 +452,17 @@ function TrainStream() {
   const [queueStatus, setQueueStatus] = useState(null);
   const [jobId, setJobId] = useState(null);
   const [showLoraSection, setShowLoraSection] = useState(false);
+  
+  // Loss data tracking
+  const [currentLossData, setCurrentLossData] = useState([]);
+  const [euryLossData, setEuryLossData] = useState([]);
+  const [traditionalLossData, setTraditionalLossData] = useState([]);
+  const [lastModelConfig, setLastModelConfig] = useState(null);
+  const [trainingStartTime, setTrainingStartTime] = useState(null);
+  const [lastEpochTime, setLastEpochTime] = useState(null);
+  const [currentTimeData, setCurrentTimeData] = useState([]);
+  const [euryTimeData, setEuryTimeData] = useState([]);
+  const [traditionalTimeData, setTraditionalTimeData] = useState([]);
 
   // Class labels for different datasets
   const classLabelsMap = {
@@ -357,6 +519,32 @@ function TrainStream() {
   const handleTrainingMethodChange = (trainingMethod) => {
     setSelectedTrainingMethod(trainingMethod);
   };
+
+  // Function to parse loss values from log content
+  const parseLossFromLog = (content) => {
+    // Look for various loss patterns in the logs
+    const lossPatterns = [
+      /loss[:\s]*([0-9]+\.?[0-9]*)/i,
+      /training loss[:\s]*([0-9]+\.?[0-9]*)/i,
+      /epoch \d+[^\n]*loss[:\s]*([0-9]+\.?[0-9]*)/i,
+      /loss[=:\s]*([0-9]+\.?[0-9]*)/i,
+      /train_loss[:\s]*([0-9]+\.?[0-9]*)/i,
+      /avg_loss[:\s]*([0-9]+\.?[0-9]*)/i
+    ];
+
+    for (const pattern of lossPatterns) {
+      const match = content.match(pattern);
+      if (match && match[1]) {
+        const lossValue = parseFloat(match[1]);
+        if (!isNaN(lossValue) && lossValue < 100) { // Basic validation
+          return lossValue;
+        }
+      }
+    }
+    return null;
+  };
+
+
 
   // Function to check queue status
   const checkQueueStatus = async () => {
@@ -558,18 +746,52 @@ function TrainStream() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let logBuffer = "";
+      let temp = [];
+      let tempTime = [];
 
-      while (true) {
+      setCurrentLossData([]); // Reset current loss data
+      setCurrentTimeData([]); // Reset time data  
+      let startTime=Date.now();
+      let lastTime=null;
+      outerloop:while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) break outerloop;
         logBuffer += decoder.decode(value, { stream: true });
         // SSE format: lines starting with "data: "
         const lines = logBuffer.split("\n");
         let newLogs = "";
         let newResults = "";
         for (const line of lines) {
+          if (line.includes("Training complete")) {
+            console.log("complete");
+            break outerloop;
+          }
           if (line.startsWith("data: ")) {
             const content = line.replace("data: ", "");
+
+            
+            // Parse loss values from the content
+            const lossValue = parseLossFromLog(content);
+            if (lossValue !== null) {
+              setCurrentLossData(prev => [...prev, lossValue]);
+              temp = [...temp, lossValue];
+              // Calculate time since last epoch (per-epoch time)
+              const currentTime = Date.now();
+              if (lastTime === null) {
+                // First epoch of this training run - start from training start time
+                const epochDuration = (currentTime - startTime) / 1000;
+                setCurrentTimeData(prev => [...prev, epochDuration]);
+                tempTime = [...tempTime, epochDuration];
+                lastTime = currentTime;
+              } else {
+                // Subsequent epochs - measure time since last epoch
+                const epochDuration = (currentTime - lastTime) / 1000;
+                setCurrentTimeData(prev => [...prev, epochDuration]);
+                tempTime = [...tempTime, epochDuration];
+                lastTime = currentTime;
+              }
+            }
+            
             // Check if this is a results section
             if (content.includes("Sample Results and Predictions:") || 
                 content.includes("Sample Text Examples with Predictions:") ||
@@ -604,6 +826,30 @@ function TrainStream() {
       
       // Set the completed training method when training finishes successfully
       setCompletedTrainingMethod(trainingMethodUsed);
+      console.log(trainingMethodUsed);
+      console.log('method result: ' + (trainingMethodUsed.trim() === 'eury'));
+      console.log("Current loss data length:", currentLossData.length);
+      console.log("Current loss temp data length:", temp.length);
+      // Save loss data based on training method
+      if (trainingMethodUsed.trim() === 'eury') {
+        console.log('set eury data');
+        console.log("Current loss data length:", currentLossData.length);
+        setEuryLossData([...currentLossData]);
+        setEuryLossData([...temp]);
+        setEuryTimeData([...currentTimeData]);
+        setEuryTimeData([...tempTime]);
+        console.log('eury data saved');
+      } else {
+        console.log('set traditional data');
+        console.log("Current loss data length:", currentLossData.length);
+        setTraditionalLossData([...currentLossData]);
+        setTraditionalLossData([...temp]);
+        setTraditionalTimeData([...currentTimeData]);
+        setTraditionalTimeData([...tempTime]);
+        console.log('traditional data saved');
+      }
+      setCurrentLossData([]); // Reset current loss data
+      setCurrentTimeData([]); // Reset time data  
     } catch (error) {
       console.error("Training error:", error);
       setLogs(`Error connecting to backend: ${error.message}\n\nPlease make sure the backend server is running at ${BACKEND_URL}`);
@@ -1269,6 +1515,25 @@ function TrainStream() {
           {logs}
         </pre>
         
+        {/* Loss Chart Display */}
+        <LossChart 
+          lossData={currentLossData} 
+          timeData={currentTimeData}
+          trainingMethod={completedTrainingMethod || selectedTrainingMethod}
+          euryLossData={euryLossData}
+          traditionalLossData={traditionalLossData}
+          euryTimeData={euryTimeData}
+          traditionalTimeData={traditionalTimeData}
+        />
+        
+        {/* Combined Loss Chart - show only if both training methods have been run
+        {(euryLossData.length > 0 && traditionalLossData.length > 0) && (
+          <CombinedLossChart 
+            euryLossData={euryLossData}
+            traditionalLossData={traditionalLossData}
+          />
+        )} */}
+
         {/* Pretty Results Display */}
         {results && (
           <ComparisonResults results={results} datasetName={selectedDataset} />
