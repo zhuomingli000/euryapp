@@ -57,7 +57,7 @@ function LossChart({
   // Eury (completed)
   if (euryLossData?.length) {
     datasets.push({
-      label: "Eury (DWL) - Completed",
+      label: "Eury - Completed",
       data: toXY(euryLossData, euryTimeData, { step: 1, addOrigin: true }),
       borderColor: "#3498db",
       backgroundColor: "rgba(52, 152, 219, 0.1)",
@@ -96,7 +96,7 @@ function LossChart({
   // if (lossData?.length) {
   const isEury = trainingMethod === "eury";
   datasets.push({
-    label: `${isEury ? "Eury (DWL)" : "Traditional"} - Training Now`,
+    label: `${isEury ? "Eury" : "Traditional"} - Training Now`,
     data: toXY(lossData, timeData, { step: 1, addOrigin: true }),
     borderColor: isEury ? "#2980b9" : "#c0392b",
     backgroundColor: isEury ? "rgba(41, 128, 185, 0.2)" : "rgba(192, 57, 43, 0.2)",
