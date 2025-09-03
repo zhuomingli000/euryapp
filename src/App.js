@@ -26,7 +26,7 @@ ChartJS.register(
 );
 
 function toXY(lossArr = [], epochTimes = [], { step = 1, addOrigin = true } = {}) {
-  if (!lossArr.length) return [{ x: 0, y: 2.0 }]; // Default loss of 2.0 at time=0
+  if (!lossArr.length) return []; // Default loss of 2.0 at time=0
   let t = 0;
   const pts = [];
   if (addOrigin) {

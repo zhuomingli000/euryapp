@@ -25,7 +25,7 @@ const envContent = `# Google OAuth Configuration
 REACT_APP_GOOGLE_CLIENT_ID=your-google-client-id-here
 
 # Backend URL (optional - can be overridden)
-REACT_APP_BACKEND_URL=https://unique-bullfrog-blatantly.ngrok-free.app
+REACT_APP_BACKEND_URL=https://tnq4ievkmx1cx2-8888.proxy.runpod.net
 
 # Instructions:
 # 1. Go to https://console.cloud.google.com
