@@ -7,7 +7,8 @@
 // - Production server: "https://your-production-server.com"
 
 // Use environment variable if available, otherwise use the default
-export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://tnq4ievkmx1cx2-8888.proxy.runpod.net";
+const prod = true;
+export const BACKEND_URL = prod ? "https://tnq4ievkmx1cx2-8888.proxy.runpod.net" : "https://unique-bullfrog-blatantly.ngrok-free.app";
 
 // For ngrok tunnel, uncomment the line below:
 // export const BACKEND_URL = "https://unique-bullfrog-blatantly.ngrok-free.app";

@@ -30,7 +30,7 @@ function toXY(lossArr = [], epochTimes = [], { step = 1, addOrigin = true } = {}
   let t = 0;
   const pts = [];
   if (addOrigin) {
-    pts.push({ x: 0, y: 2.0 }); // starting point at time=0
+    pts.push({ x: 0, y: 5.0 }); // starting point at time=0
   }
   for (let i = 0; i < lossArr.length; i++) {
     const dt = Number(epochTimes?.[i] ?? step);
@@ -225,9 +225,10 @@ function EuryIntro({ onStart }) {
   );
 }
 
-function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = false }) {
+function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = false, modelArchitecture = "transformer" }) {
   const [input, setInput] = useState("");
   const [prediction, setPrediction] = useState(null);
+  const [generatedText, setGeneratedText] = useState(null);
   const [error, setError] = useState(null);
 
   // Class labels for different datasets
@@ -297,12 +298,14 @@ function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = fal
     e.preventDefault();
     setError(null);
     setPrediction(null);
+    setGeneratedText(null);
     const formData = new FormData();
     formData.append("model_name", modelName);
     formData.append("user_input", input);
     formData.append("dataset_name", datasetName);
     formData.append("training_method", trainingMethod); // Add training method to form data
     formData.append("custom", isCustomModel ? "true" : "false"); // Add custom parameter
+    formData.append("model_type", modelArchitecture); // Add model architecture
     try {
       // Skip authentication - allow predictions without login
       const res = await fetch(`${BACKEND_URL}/predict`, {
@@ -312,7 +315,14 @@ function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = fal
       const data = await res.json();
       if (data.error) {
         setError(data.error);
+      } else if (data.generated_text !== undefined) {
+        // GPT model response
+        setGeneratedText(data.generated_text);
+        if (data.note) {
+          setError(data.note); // Using error state to display the note
+        }
       } else {
+        // Transformer model response
         setPrediction(data.prediction);
         if (data.note) {
           setError(data.note); // Using error state to display the note
@@ -331,7 +341,9 @@ function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = fal
       boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
       border: '1px solid #e1e8ed'
     }}>
-      <h3 style={{ color: '#2c3e50', marginBottom: '20px', fontSize: '1.4em' }}>🧪 Test Trained Model</h3>
+      <h3 style={{ color: '#2c3e50', marginBottom: '20px', fontSize: '1.4em' }}>
+        {modelArchitecture === "gpt" ? '💬 Test GPT Model' : '🧪 Test Trained Model'}
+      </h3>
       
       {trainingMethod === 'eury' && (
         <div style={{ 
@@ -343,12 +355,15 @@ function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = fal
           color: '#2d5a2d'
         }}>
           <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-            {isCustomModel ? 'ℹ️ Custom Eury Model Testing' : 'ℹ️ Eury Model Testing'}
+            {modelArchitecture === "gpt" ? 'ℹ️ GPT Eury Model Testing' : 
+             isCustomModel ? 'ℹ️ Custom Eury Model Testing' : 'ℹ️ Eury Model Testing'}
           </div>
           <div style={{ fontSize: '0.9em' }}>
-            {isCustomModel 
-              ? 'Custom Eury training provides predictions during training. The test feature will use the base BERT model for inference.'
-              : 'Eury training provides predictions during training. The test feature will use the base model for inference. For best results, use traditional training method for model testing.'
+            {modelArchitecture === "gpt" 
+              ? 'GPT Eury training optimizes text generation. The test feature will generate text continuations based on your input.'
+              : isCustomModel 
+                ? 'Custom Eury training provides predictions during training. The test feature will use the base BERT model for inference.'
+                : 'Eury training provides predictions during training. The test feature will use the base model for inference. For best results, use traditional training method for model testing.'
             }
           </div>
         </div>
@@ -357,25 +372,46 @@ function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = fal
       <form onSubmit={handleTest} style={{ marginBottom: '20px' }}>
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#2c3e50' }}>
-            Input Text:
+            {modelArchitecture === "gpt" ? "Text Prompt:" : "Input Text:"}
           </label>
-          <input
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Enter text for prediction..."
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '2px solid #e1e8ed',
-              borderRadius: '8px',
-              fontSize: '1em',
-              backgroundColor: 'white',
-              color: '#2c3e50',
-              transition: 'border-color 0.2s',
-              cursor: 'text'
-            }}
-          />
+          {modelArchitecture === "gpt" ? (
+            <textarea
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder="Enter a text prompt for the GPT model to continue..."
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '2px solid #e1e8ed',
+                borderRadius: '8px',
+                fontSize: '1em',
+                backgroundColor: 'white',
+                color: '#2c3e50',
+                transition: 'border-color 0.2s',
+                cursor: 'text',
+                resize: 'vertical'
+              }}
+            />
+          ) : (
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder="Enter text for prediction..."
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '2px solid #e1e8ed',
+                borderRadius: '8px',
+                fontSize: '1em',
+                backgroundColor: 'white',
+                color: '#2c3e50',
+                transition: 'border-color 0.2s',
+                cursor: 'text'
+              }}
+            />
+          )}
         </div>
         <button 
           type="submit" 
@@ -392,7 +428,7 @@ function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = fal
             boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
           }}
         >
-          🔮 Predict
+          {modelArchitecture === "gpt" ? '✨ Generate Text' : '🔮 Predict'}
         </button>
       </form>
       
@@ -409,6 +445,50 @@ function TestModel({ modelName, datasetName, trainingMethod, isCustomModel = fal
         </div>
       )}
       
+      {/* GPT Text Generation Results */}
+      {generatedText !== null && (
+        <div style={{ 
+          marginTop: '20px', 
+          padding: '15px', 
+          backgroundColor: '#f0f8ff', 
+          borderRadius: '8px',
+          border: '1px solid #b3d9ff'
+        }}>
+          <div style={{ color: '#2c5aa0', fontWeight: 'bold', marginBottom: '8px' }}>
+            ✨ Generated Text:
+          </div>
+          <div style={{ 
+            padding: '12px',
+            backgroundColor: 'white',
+            borderRadius: '6px',
+            border: '1px solid #e1e8ed',
+            fontFamily: 'Georgia, serif',
+            fontSize: '1.05em',
+            lineHeight: '1.6',
+            color: '#2c3e50'
+          }}>
+            <div style={{ fontWeight: 'bold', color: '#666', fontSize: '0.9em', marginBottom: '8px' }}>
+              Your prompt:
+            </div>
+            <div style={{ marginBottom: '12px', fontStyle: 'italic' }}>
+              "{input}"
+            </div>
+            <div style={{ fontWeight: 'bold', color: '#666', fontSize: '0.9em', marginBottom: '8px' }}>
+              Generated continuation:
+            </div>
+            <div>
+              {generatedText || <em style={{ color: '#999' }}>No text generated</em>}
+            </div>
+          </div>
+          {error && error.includes("untrained") && (
+            <div style={{ color: '#f39c12', marginTop: '10px', fontSize: '0.9em' }}>
+              ⚠️ <strong>Note:</strong> {error}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Transformer Classification Results */}
       {prediction !== null && (
         <div style={{ 
           marginTop: '20px', 
@@ -448,7 +528,35 @@ function TrainStream() {
   const [selectedTrainingMethod, setSelectedTrainingMethod] = useState("eury");
   const [completedTrainingMethod, setCompletedTrainingMethod] = useState(null); // Track the method used for completed training
   const [modelType, setModelType] = useState("pretrained");
+  const [modelArchitecture, setModelArchitecture] = useState("transformer"); // transformer or gpt
   const [formError, setFormError] = useState("");
+  
+  // GPT models defined directly in frontend
+  const gptModels = {
+    // GPT-2 family
+    "gpt2": {"name": "GPT-2", "size": "124M", "description": "OpenAI GPT-2 base model"},
+    "gpt2-medium": {"name": "GPT-2 Medium", "size": "355M", "description": "OpenAI GPT-2 medium model"},
+    "gpt2-large": {"name": "GPT-2 Large", "size": "774M", "description": "OpenAI GPT-2 large model"},
+    "distilgpt2": {"name": "DistilGPT-2", "size": "82M", "description": "Lightweight GPT-2"},
+    
+    // EleutherAI GPT family
+    "EleutherAI/gpt-neo-125M": {"name": "GPT-Neo 125M", "size": "125M", "description": "EleutherAI GPT-Neo 125M"},
+    "EleutherAI/gpt-neo-1.3B": {"name": "GPT-Neo 1.3B", "size": "1.3B", "description": "EleutherAI GPT-Neo 1.3B"},
+    "EleutherAI/gpt-j-6B": {"name": "GPT-J 6B", "size": "6B", "description": "EleutherAI GPT-J 6B"},
+    
+    // OPT (Meta)
+    "facebook/opt-125m": {"name": "OPT 125M", "size": "125M", "description": "Meta OPT 125M"},
+    "facebook/opt-350m": {"name": "OPT 350M", "size": "350M", "description": "Meta OPT 350M"},
+    "facebook/opt-1.3b": {"name": "OPT 1.3B", "size": "1.3B", "description": "Meta OPT 1.3B"},
+    
+    // BLOOM
+    "bigscience/bloom-560m": {"name": "BLOOM 560M", "size": "560M", "description": "BigScience BLOOM 560M"},
+    "bigscience/bloom-1b1": {"name": "BLOOM 1.1B", "size": "1.1B", "description": "BigScience BLOOM 1.1B"},
+    
+    // Qwen
+    "Qwen/Qwen-1_8B": {"name": "Qwen 1.8B", "size": "1.8B", "description": "Alibaba Qwen 1.8B", "trust_remote_code": true},
+    "Qwen/Qwen2-0.5B": {"name": "Qwen2 0.5B", "size": "0.5B", "description": "Alibaba Qwen2 0.5B", "trust_remote_code": true},
+  };
   const [queueStatus, setQueueStatus] = useState(null);
   const [jobId, setJobId] = useState(null);
   const [showLoraSection, setShowLoraSection] = useState(false);
@@ -523,16 +631,30 @@ function TrainStream() {
   // Function to parse loss values from log content
   const parseLossFromLog = (content) => {
     // Look for various loss patterns in the logs
-    const lossPatterns = [
-      /loss[:\s]*([0-9]+\.?[0-9]*)/i,
+    // Note: lossPatterns array is no longer used directly - we use trainingLossPatterns below
+    // to ensure we only capture training losses, not validation/eval losses
+
+    // For GPT models, prioritize training loss over validation loss
+    // Check for GPT format first and return training loss if available
+    const gptTrainMatch = content.match(/train loss\/token[:\s]*([0-9]+\.?[0-9]*)/i);
+    if (gptTrainMatch && gptTrainMatch[1]) {
+      const trainLoss = parseFloat(gptTrainMatch[1]);
+      if (!isNaN(trainLoss) && trainLoss < 100) {
+        return trainLoss;
+      }
+    }
+
+    // Check for other training loss patterns (excluding validation/eval patterns)
+    const trainingLossPatterns = [
       /training loss[:\s]*([0-9]+\.?[0-9]*)/i,
-      /epoch \d+[^\n]*loss[:\s]*([0-9]+\.?[0-9]*)/i,
-      /loss[=:\s]*([0-9]+\.?[0-9]*)/i,
       /train_loss[:\s]*([0-9]+\.?[0-9]*)/i,
-      /avg_loss[:\s]*([0-9]+\.?[0-9]*)/i
+      /avg_loss[:\s]*([0-9]+\.?[0-9]*)/i,
+      /epoch \d+[^\n]*loss[:\s]*([0-9]+\.?[0-9]*)/i,
+      /loss[:\s]*([0-9]+\.?[0-9]*)/i,
+      /loss[=:\s]*([0-9]+\.?[0-9]*)/i
     ];
 
-    for (const pattern of lossPatterns) {
+    for (const pattern of trainingLossPatterns) {
       const match = content.match(pattern);
       if (match && match[1]) {
         const lossValue = parseFloat(match[1]);
@@ -615,6 +737,10 @@ function TrainStream() {
     const form = e.target;
     const formData = new FormData(form);
     
+    // Handle model architecture
+    const modelArchitecture = formData.get("model_architecture") || "transformer";
+    formData.set("model_type_arch", modelArchitecture);
+    
     // Handle model type and name
     const modelType = formData.get("model_type");
     if (modelType === "custom") {
@@ -644,6 +770,20 @@ function TrainStream() {
       // Handle pretrained checkbox for pre-trained models
       const pretrained = formData.get("pretrained") === "on";
       formData.set("pretrained", pretrained ? "true" : "false");
+    }
+    
+    // Handle fast inference for GPT models
+    if (modelArchitecture === "gpt") {
+      const fastInference = formData.get("fast_dwl_inference") === "on";
+      formData.set("fast_dwl_inference", fastInference ? "true" : "false");
+      
+      // For GPT models, use a default dataset if none selected
+      if (!formData.get("dataset_name")) {
+        formData.set("dataset_name", "yahoo_answers_topics");
+      }
+    } else {
+      // For transformer models, ensure fast inference is false
+      formData.set("fast_dwl_inference", "false");
     }
     
     // Set selectedModel for custom models too (use a default model name for testing)
@@ -936,6 +1076,51 @@ function TrainStream() {
           </div>
         </div>
 
+        {/* Model Architecture Selection */}
+        <div style={{ marginBottom: '25px' }}>
+          <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#2c3e50' }}>
+            Model Architecture:
+          </label>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '20px',
+            padding: '15px',
+            border: '2px solid #e1e8ed',
+            borderRadius: '8px',
+            backgroundColor: '#f8f9fa'
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '8px 16px', borderRadius: '6px', transition: 'all 0.2s' }}>
+              <input 
+                type="radio" 
+                name="model_architecture" 
+                value="transformer" 
+                checked={modelArchitecture === "transformer"}
+                onChange={(e) => setModelArchitecture(e.target.value)}
+                style={{ transform: 'scale(1.2)' }}
+              />
+              <span style={{ fontWeight: 'bold', color: '#2c5aa0', fontSize: '1.1em' }}>🤖 Transformer (Classification)</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '8px 16px', borderRadius: '6px', transition: 'all 0.2s' }}>
+              <input 
+                type="radio" 
+                name="model_architecture" 
+                value="gpt" 
+                checked={modelArchitecture === "gpt"}
+                onChange={(e) => setModelArchitecture(e.target.value)}
+                style={{ transform: 'scale(1.2)' }}
+              />
+              <span style={{ fontWeight: 'bold', color: '#8b4513', fontSize: '1.1em' }}>💬 GPT (Text Generation)</span>
+            </label>
+          </div>
+          <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#666', fontStyle: 'italic' }}>
+            {modelArchitecture === "transformer" 
+              ? "🎯 Transformer models are designed for classification tasks (e.g., sentiment analysis, topic classification)"
+              : "✨ GPT models are designed for text generation tasks (e.g., completing text, creative writing)"
+            }
+          </div>
+        </div>
+
         {/* Model Selection */}
         <div style={{ marginBottom: '25px' }}>
           <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#2c3e50' }}>
@@ -955,7 +1140,7 @@ function TrainStream() {
             }}
           >
             <option value="pretrained">Pre-trained Model</option>
-            <option value="custom">Custom Transformer</option>
+            <option value="custom">Custom {modelArchitecture === "gpt" ? "GPT" : "Transformer"}</option>
           </select>
         </div>
 
@@ -975,22 +1160,35 @@ function TrainStream() {
               transition: 'border-color 0.2s'
             }}>
               <option value="">Select a model</option>
-              <option value="bert-base-uncased">BERT Base</option>
-              <option value="distilbert-base-uncased">DistilBERT</option>
-              <option value="roberta-base">RoBERTa</option>
-              <option value="google/electra-base-discriminator">ELECTRA</option>
-              <option value="albert-base-v2">ALBERT</option>
-              <option value="microsoft/deberta-base">DeBERTa</option>
-              <option value="funnel-transformer/small">Funnel</option>
-              <option value="google/mobilebert-uncased">MobileBERT</option>
-              <option value="prajjwal1/bert-tiny">TinyBERT</option>
-              <option value="microsoft/MiniLM-L12-H384-uncased">MiniLM</option>
-              <option value="camembert-base">CamemBERT</option>
-              <option value="xlm-roberta-base">XLM-RoBERTa</option>
-              <option value="facebook/bart-base">BART</option>
-              <option value="bert-base-multilingual-uncased">mBERT</option>
-              <option value="microsoft/layoutlm-base-uncased">LayoutLM</option>
+              {modelArchitecture === "transformer" ? (
+                // Transformer models for classification
+                <>
+                  <option value="bert-base-uncased">BERT Base</option>
+                  <option value="distilbert-base-uncased">DistilBERT</option>
+                  <option value="roberta-base">RoBERTa</option>
+                  <option value="google/electra-base-discriminator">ELECTRA</option>
+                  <option value="albert-base-v2">ALBERT</option>
+                  <option value="microsoft/deberta-base">DeBERTa</option>
+                  <option value="funnel-transformer/small">Funnel</option>
+                  <option value="google/mobilebert-uncased">MobileBERT</option>
+                  <option value="prajjwal1/bert-tiny">TinyBERT</option>
+                  <option value="microsoft/MiniLM-L12-H384-uncased">MiniLM</option>
+                  <option value="camembert-base">CamemBERT</option>
+                  <option value="xlm-roberta-base">XLM-RoBERTa</option>
+                  <option value="facebook/bart-base">BART</option>
+                  <option value="bert-base-multilingual-uncased">mBERT</option>
+                  <option value="microsoft/layoutlm-base-uncased">LayoutLM</option>
+                </>
+              ) : (
+                // GPT models for text generation
+                Object.entries(gptModels).map(([modelId, info]) => (
+                  <option key={modelId} value={modelId}>
+                    {info.name} ({info.size}) - {info.description}
+                  </option>
+                ))
+              )}
             </select>
+
           </div>
         )}
 
@@ -1123,35 +1321,56 @@ function TrainStream() {
           </div>
         )}
 
-        {/* Dataset Selection */}
-        <div style={{ marginBottom: '25px' }}>
-          <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#2c3e50' }}>
-            Dataset:
-          </label>
-          <select name="dataset_name" required onChange={(e) => handleDatasetChange(e.target.value)} style={{
-            width: '100%',
-            padding: '12px',
-            border: '2px solid #e1e8ed',
+        {/* Dataset Selection - Only for Transformer models */}
+        {modelArchitecture === "transformer" && (
+          <div style={{ marginBottom: '25px' }}>
+            <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#2c3e50' }}>
+              Dataset:
+            </label>
+            <select name="dataset_name" required onChange={(e) => handleDatasetChange(e.target.value)} style={{
+              width: '100%',
+              padding: '12px',
+              border: '2px solid #e1e8ed',
+              borderRadius: '8px',
+              fontSize: '1em',
+              backgroundColor: 'white',
+              transition: 'border-color 0.2s'
+            }}>
+              <option value="">Select a dataset</option>
+              <option value="ag_news">📰 AG News (News classification)</option>
+              <option value="dbpedia_14">📚 DBpedia 14 (Wikipedia articles)</option>
+              <option value="yahoo_answers_topics">❓ Yahoo Answers Topics</option>
+              <option value="yelp_review_full">⭐ Yelp Review Full (1-5 stars)</option>
+              <option value="yelp_polarity">👍👎 Yelp Polarity (Positive/Negative)</option>
+              <option value="amazon_polarity">🛒 Amazon Polarity (Sentiment)</option>
+              <option value="trec">❓ TREC (Question classification)</option>
+              <option value="emotion">😊 Emotion (Emotion labels)</option>
+              <option value="go_emotions">😀 Go Emotions (28 emotions)</option>
+              <option value="imdb">🎬 IMDB (Movie reviews)</option>
+              <option value="banking77">🏦 Banking77 (Customer queries)</option>
+              <option value="rotten_tomatoes">🍅 Rotten Tomatoes (Movie reviews)</option>
+            </select>
+          </div>
+        )}
+
+        {/* GPT Training Notice */}
+        {modelArchitecture === "gpt" && (
+          <div style={{ 
+            marginBottom: '25px', 
+            padding: '15px', 
+            backgroundColor: '#e8f4fd', 
             borderRadius: '8px',
-            fontSize: '1em',
-            backgroundColor: 'white',
-            transition: 'border-color 0.2s'
+            border: '1px solid #b3d9ff',
+            color: '#2c5aa0'
           }}>
-            <option value="">Select a dataset</option>
-            <option value="ag_news">📰 AG News (News classification)</option>
-            <option value="dbpedia_14">📚 DBpedia 14 (Wikipedia articles)</option>
-            <option value="yahoo_answers_topics">❓ Yahoo Answers Topics</option>
-            <option value="yelp_review_full">⭐ Yelp Review Full (1-5 stars)</option>
-            <option value="yelp_polarity">👍👎 Yelp Polarity (Positive/Negative)</option>
-            <option value="amazon_polarity">🛒 Amazon Polarity (Sentiment)</option>
-            <option value="trec">❓ TREC (Question classification)</option>
-            <option value="emotion">😊 Emotion (Emotion labels)</option>
-            <option value="go_emotions">😀 Go Emotions (28 emotions)</option>
-            <option value="imdb">🎬 IMDB (Movie reviews)</option>
-            <option value="banking77">🏦 Banking77 (Customer queries)</option>
-            <option value="rotten_tomatoes">🍅 Rotten Tomatoes (Movie reviews)</option>
-          </select>
-        </div>
+            <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
+              💬 GPT Training Mode
+            </div>
+            <div style={{ fontSize: '0.9em' }}>
+              GPT models are trained for text generation using the selected datasets as text corpus. The model will learn to generate text in a similar style and domain.
+            </div>
+          </div>
+        )}
 
         {/* Learning Rate */}
         <div style={{ marginBottom: '25px' }}>
@@ -1174,6 +1393,24 @@ function TrainStream() {
             }}
           />
         </div>
+
+        {/* Fast Inference for GPT models */}
+        {modelArchitecture === "gpt" && (
+          <div style={{ marginBottom: '25px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                name="fast_dwl_inference" 
+                defaultChecked={true}
+                style={{ transform: 'scale(1.2)' }}
+              />
+              <span style={{ fontWeight: 'bold', color: '#2c3e50' }}>Enable Fast DWL Inference</span>
+            </label>
+            <p style={{ margin: '5px 0 0 0', fontSize: '0.9em', color: '#666' }}>
+              Speeds up inference for DWL-trained GPT models by using compression techniques.
+            </p>
+          </div>
+        )}
 
         {/* LoRA Toggle */}
         <div style={{ marginBottom: '20px' }}>
@@ -1623,6 +1860,7 @@ function TrainStream() {
               datasetName={selectedDataset} 
               trainingMethod={completedTrainingMethod || selectedTrainingMethod}
               isCustomModel={selectedModel === "bert-base-uncased" && (completedTrainingMethod || selectedTrainingMethod) === "eury"}
+              modelArchitecture={modelArchitecture}
             />
           </div>
         )}
