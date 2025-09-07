@@ -649,9 +649,7 @@ function TrainStream() {
       /training loss[:\s]*([0-9]+\.?[0-9]*)/i,
       /train_loss[:\s]*([0-9]+\.?[0-9]*)/i,
       /avg_loss[:\s]*([0-9]+\.?[0-9]*)/i,
-      /epoch \d+[^\n]*loss[:\s]*([0-9]+\.?[0-9]*)/i,
-      /loss[:\s]*([0-9]+\.?[0-9]*)/i,
-      /loss[=:\s]*([0-9]+\.?[0-9]*)/i
+      /epoch \d+[^\n]*loss[:\s]*([0-9]+\.?[0-9]*)/i
     ];
 
     for (const pattern of trainingLossPatterns) {
