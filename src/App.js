@@ -202,7 +202,7 @@ function EuryIntro({ onStart }) {
             pip install eury-cli
           </code>
           <a 
-            href="https://pypi.org/project/eury-cli/" 
+            href="https://pypi.org/project/dwl-cli/" 
             target="_blank" 
             rel="noopener noreferrer"
             style={{
