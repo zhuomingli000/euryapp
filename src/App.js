@@ -648,7 +648,7 @@ function TrainStream() {
     const trainingLossPatterns = [
       /training loss[:\s]*([0-9]+\.?[0-9]*)/i,
       /train_loss[:\s]*([0-9]+\.?[0-9]*)/i,
-      /Loss[:\s]*([0-9]+\.?[0-9]*)/i,
+      /Loss[:\s]*([0-9]+\.?[0-9]*)/,
       /avg_loss[:\s]*([0-9]+\.?[0-9]*)/i,
       /epoch \d+[^\n]*loss[:\s]*([0-9]+\.?[0-9]*)/i
     ];
