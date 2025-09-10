@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/euryapp/static/css/main.e6c13ad2.css",
-    "main.js": "/euryapp/static/js/main.0ecd04ad.js",
+    "main.js": "/euryapp/static/js/main.d80fa69a.js",
     "static/js/453.670e15c7.chunk.js": "/euryapp/static/js/453.670e15c7.chunk.js",
     "index.html": "/euryapp/index.html",
     "main.e6c13ad2.css.map": "/euryapp/static/css/main.e6c13ad2.css.map",
-    "main.0ecd04ad.js.map": "/euryapp/static/js/main.0ecd04ad.js.map",
+    "main.d80fa69a.js.map": "/euryapp/static/js/main.d80fa69a.js.map",
     "453.670e15c7.chunk.js.map": "/euryapp/static/js/453.670e15c7.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.0ecd04ad.js"
+    "static/js/main.d80fa69a.js"
   ]
 }
